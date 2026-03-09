@@ -277,20 +277,23 @@ defmodule SymphonyElixir.Codex.AppServer do
   end
 
   defp await_turn_completion(port, on_message, tool_executor, auto_approve_requests) do
-    receive_loop(port, on_message, Config.codex_turn_timeout_ms(), "", tool_executor, auto_approve_requests)
+    deadline_ms = System.monotonic_time(:millisecond) + Config.codex_turn_timeout_ms()
+    receive_loop(port, on_message, deadline_ms, "", tool_executor, auto_approve_requests)
   end
 
-  defp receive_loop(port, on_message, timeout_ms, pending_line, tool_executor, auto_approve_requests) do
+  defp receive_loop(port, on_message, deadline_ms, pending_line, tool_executor, auto_approve_requests) do
+    remaining_ms = max(0, deadline_ms - System.monotonic_time(:millisecond))
+
     receive do
       {^port, {:data, {:eol, chunk}}} ->
         complete_line = pending_line <> to_string(chunk)
-        handle_incoming(port, on_message, complete_line, timeout_ms, tool_executor, auto_approve_requests)
+        handle_incoming(port, on_message, complete_line, deadline_ms, tool_executor, auto_approve_requests)
 
       {^port, {:data, {:noeol, chunk}}} ->
         receive_loop(
           port,
           on_message,
-          timeout_ms,
+          deadline_ms,
           pending_line <> to_string(chunk),
           tool_executor,
           auto_approve_requests
@@ -299,12 +302,12 @@ defmodule SymphonyElixir.Codex.AppServer do
       {^port, {:exit_status, status}} ->
         {:error, {:port_exit, status}}
     after
-      timeout_ms ->
+      remaining_ms ->
         {:error, :turn_timeout}
     end
   end
 
-  defp handle_incoming(port, on_message, data, timeout_ms, tool_executor, auto_approve_requests) do
+  defp handle_incoming(port, on_message, data, deadline_ms, tool_executor, auto_approve_requests) do
     payload_string = to_string(data)
 
     case Jason.decode(payload_string) do
@@ -344,7 +347,7 @@ defmodule SymphonyElixir.Codex.AppServer do
           payload,
           payload_string,
           method,
-          timeout_ms,
+          deadline_ms,
           tool_executor,
           auto_approve_requests
         )
@@ -360,7 +363,7 @@ defmodule SymphonyElixir.Codex.AppServer do
           metadata_from_message(port, payload)
         )
 
-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
+        receive_loop(port, on_message, deadline_ms, "", tool_executor, auto_approve_requests)
 
       {:error, _reason} ->
         log_non_json_stream_line(payload_string, "turn stream")
@@ -375,7 +378,7 @@ defmodule SymphonyElixir.Codex.AppServer do
           metadata_from_message(port, %{raw: payload_string})
         )
 
-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
+        receive_loop(port, on_message, deadline_ms, "", tool_executor, auto_approve_requests)
     end
   end
 
@@ -398,7 +401,7 @@ defmodule SymphonyElixir.Codex.AppServer do
          payload,
          payload_string,
          method,
-         timeout_ms,
+         deadline_ms,
          tool_executor,
          auto_approve_requests
        ) do
@@ -425,7 +428,7 @@ defmodule SymphonyElixir.Codex.AppServer do
         {:error, {:turn_input_required, payload}}
 
       :approved ->
-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
+        receive_loop(port, on_message, deadline_ms, "", tool_executor, auto_approve_requests)
 
       :approval_required ->
         emit_message(
@@ -459,7 +462,7 @@ defmodule SymphonyElixir.Codex.AppServer do
           )
 
           Logger.debug("Codex notification: #{inspect(method)}")
-          receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
+          receive_loop(port, on_message, deadline_ms, "", tool_executor, auto_approve_requests)
         end
     end
   end

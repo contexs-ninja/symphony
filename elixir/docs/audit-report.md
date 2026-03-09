@@ -41,6 +41,11 @@
 - `safe_identifier` replaced non-alphanumeric chars with `_`, causing `issue/1` and `issue_1` to map to the same directory.
 - Added hash suffix from `:erlang.phash2(raw)` when sanitization changes the identifier, ensuring unique workspace paths.
 
+### [FIXED] E2 — AppServer turn timeout resets on every message
+- **File**: `codex/app_server.ex`
+- `receive_loop` used a relative `timeout_ms` in `after`, meaning any incoming message reset the clock. A turn could run indefinitely as long as the port kept sending data.
+- Replaced with absolute deadline: `deadline_ms = System.monotonic_time(:millisecond) + timeout`. Each loop iteration computes `remaining_ms = max(0, deadline_ms - now)` for the `after` clause.
+
 ### [FIXED] P1 — Observability API has no authentication
 - **Files**: `plugs/api_auth.ex` (new), `router.ex`
 - Added `SymphonyElixirWeb.Plugs.ApiAuth` plug with opt-in Bearer token auth via `SYMPHONY_API_TOKEN` env var.
@@ -63,8 +68,8 @@
 **P2: active_state_set/terminal_state_set recreated every poll cycle**
 - `orchestrator.ex:564-576` — MapSet.new() called each cycle despite rare config changes.
 
-**E2: AppServer turn timeout resets on every message**
-- Turns can exceed the 1-hour limit as long as messages keep arriving.
+**~~E2: AppServer turn timeout resets on every message~~ [FIXED]**
+- Converted `receive_loop` from relative `timeout_ms` to absolute `deadline_ms` with `remaining_ms = max(0, deadline - now)`.
 
 **~~E3: Port.command without error handling in AppServer~~ [FIXED]**
 - Added try/rescue around `Port.command` in `send_message/2` to handle closed port gracefully.

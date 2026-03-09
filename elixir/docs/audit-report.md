@@ -41,15 +41,14 @@
 - `safe_identifier` replaced non-alphanumeric chars with `_`, causing `issue/1` and `issue_1` to map to the same directory.
 - Added hash suffix from `:erlang.phash2(raw)` when sanitization changes the identifier, ensuring unique workspace paths.
 
+### [FIXED] P1 — Observability API has no authentication
+- **Files**: `plugs/api_auth.ex` (new), `router.ex`
+- Added `SymphonyElixirWeb.Plugs.ApiAuth` plug with opt-in Bearer token auth via `SYMPHONY_API_TOKEN` env var.
+- When set, all `/api/v1/*` requests require `Authorization: Bearer <token>`. When unset, existing behavior preserved.
+
 ## Open Findings
 
 ### HIGH Priority
-
-**P1-HIGH: Observability API has no authentication**
-- Files: `router.ex:30-39`, `observability_api_controller.ex`
-- All API endpoints (`/api/v1/state`, `/api/v1/refresh`) and the LiveView dashboard have zero auth.
-- Default bind to `127.0.0.1` mitigates local risk, but any `0.0.0.0` binding exposes orchestrator state.
-- Recommendation: Add Bearer token or IP whitelist middleware.
 
 **E1-HIGH: Workspace identifier collision**
 - File: `workspace.ex:115-117`

@@ -113,7 +113,15 @@ defmodule SymphonyElixir.Workspace do
   end
 
   defp safe_identifier(identifier) do
-    String.replace(identifier || "issue", ~r/[^a-zA-Z0-9._-]/, "_")
+    raw = identifier || "issue"
+    sanitized = String.replace(raw, ~r/[^a-zA-Z0-9._-]/, "_")
+
+    if sanitized == raw do
+      sanitized
+    else
+      hash = :erlang.phash2(raw) |> Integer.to_string(16) |> String.downcase()
+      "#{sanitized}_#{hash}"
+    end
   end
 
   defp clean_tmp_artifacts(workspace) do

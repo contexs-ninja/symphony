@@ -36,6 +36,11 @@
 ### [FIXED] M1 — Orphan firebase-debug.log
 - Root `.gitignore` created to exclude `firebase-debug.log` and common editor/OS artifacts.
 
+### [FIXED] E1 — Workspace identifier collision
+- **File**: `workspace.ex`
+- `safe_identifier` replaced non-alphanumeric chars with `_`, causing `issue/1` and `issue_1` to map to the same directory.
+- Added hash suffix from `:erlang.phash2(raw)` when sanitization changes the identifier, ensuring unique workspace paths.
+
 ## Open Findings
 
 ### HIGH Priority

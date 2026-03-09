@@ -50,11 +50,6 @@
 
 ### HIGH Priority
 
-**E1-HIGH: Workspace identifier collision**
-- File: `workspace.ex:115-117`
-- `safe_identifier` replaces non-alphanumeric chars with `_`, so `issue/1` and `issue_1` map to the same directory.
-- Recommendation: Use hash suffix or percent-encoding.
-
 **S1-HIGH: Multiple files exceed 500-line limit**
 - `status_dashboard.ex` (1,949), `orchestrator.ex` (1,457), `app_server.ex` (985), `config.ex` (938).
 - Recommendation: Extract TokenAccounting, RetryScheduler, IssueDispatcher from orchestrator.
@@ -71,8 +66,8 @@
 **E2: AppServer turn timeout resets on every message**
 - Turns can exceed the 1-hour limit as long as messages keep arriving.
 
-**E3: Port.command without error handling in AppServer**
-- `Port.command(port, line)` can raise if the port is already closed.
+**~~E3: Port.command without error handling in AppServer~~ [FIXED]**
+- Added try/rescue around `Port.command` in `send_message/2` to handle closed port gracefully.
 
 **B1: Rate limits tracked but not enforced**
 - `orchestrator.ex:1127-1137` — Rate limit data is displayed but dispatch continues regardless.

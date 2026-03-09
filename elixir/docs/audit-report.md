@@ -19,6 +19,8 @@
 | Orphan artifacts | 0 | 0 | 1 |
 | **Total** | **4** | **10** | **9** |
 
+**Fixed**: 9 of 23 findings resolved in this audit (7 commits).
+
 ## Fixed in This Audit
 
 ### [FIXED] P3 — completed MapSet unbounded growth (memory leak)

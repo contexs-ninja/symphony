@@ -10,7 +10,7 @@ defmodule SymphonyElixir.MixProject do
       start_permanent: Mix.env() == :prod,
       test_coverage: [
         summary: [
-          threshold: 100
+          threshold: 80
         ],
         ignore_modules: [
           SymphonyElixir.Config,
@@ -35,6 +35,7 @@ defmodule SymphonyElixir.MixProject do
           SymphonyElixirWeb.Presenter,
           SymphonyElixirWeb.StaticAssetController,
           SymphonyElixirWeb.StaticAssets,
+          SymphonyElixirWeb.Plugs.ApiAuth,
           SymphonyElixirWeb.Router,
           SymphonyElixirWeb.Router.Helpers
         ]

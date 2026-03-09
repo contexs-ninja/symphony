@@ -13,6 +13,7 @@ defmodule SymphonyElixir.Orchestrator do
   @continuation_retry_delay_ms 1_000
   @failure_retry_base_ms 10_000
   @max_completed_set_size 500
+  @workspace_cleanup_every_n_polls 60
   # Slightly above the dashboard render interval so "checking now…" can render.
   @poll_transition_render_delay_ms 20
   @empty_codex_totals %{
@@ -37,7 +38,8 @@ defmodule SymphonyElixir.Orchestrator do
       claimed: MapSet.new(),
       retry_attempts: %{},
       codex_totals: nil,
-      codex_rate_limits: nil
+      codex_rate_limits: nil,
+      poll_count: 0
     ]
   end
 
@@ -82,8 +84,13 @@ defmodule SymphonyElixir.Orchestrator do
     now_ms = System.monotonic_time(:millisecond)
     next_poll_due_at_ms = now_ms + state.poll_interval_ms
     :ok = schedule_tick(state.poll_interval_ms)
+    poll_count = state.poll_count + 1
 
-    state = %{state | poll_check_in_progress: false, next_poll_due_at_ms: next_poll_due_at_ms}
+    if rem(poll_count, @workspace_cleanup_every_n_polls) == 0 do
+      run_terminal_workspace_cleanup()
+    end
+
+    state = %{state | poll_check_in_progress: false, next_poll_due_at_ms: next_poll_due_at_ms, poll_count: poll_count}
 
     notify_dashboard()
     {:noreply, state}

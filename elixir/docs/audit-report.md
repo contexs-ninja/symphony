@@ -75,8 +75,8 @@
 **Y1: TOCTOU between issue validation and dispatch**
 - `revalidate_issue_for_dispatch` checks state, but it can change before actual dispatch.
 
-**O1: Orphan workspaces between restarts**
-- Terminal-state cleanup only runs at startup; no periodic GC.
+**~~O1: Orphan workspaces between restarts~~ [FIXED]**
+- Added periodic terminal workspace cleanup every 60 poll cycles (~30min) via `@workspace_cleanup_every_n_polls`.
 
 **S2: Test coverage threshold is misleading**
 - `mix.exs` claims 100% threshold but excludes 23 core modules.

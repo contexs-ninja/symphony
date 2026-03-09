@@ -87,7 +87,7 @@ defmodule SymphonyElixir.Orchestrator do
     poll_count = state.poll_count + 1
 
     if rem(poll_count, @workspace_cleanup_every_n_polls) == 0 do
-      run_terminal_workspace_cleanup()
+      Task.start(fn -> run_terminal_workspace_cleanup() end)
     end
 
     state = %{state | poll_check_in_progress: false, next_poll_due_at_ms: next_poll_due_at_ms, poll_count: poll_count}
@@ -681,6 +681,7 @@ defmodule SymphonyElixir.Orchestrator do
       if MapSet.size(completed) > @max_completed_set_size do
         completed
         |> MapSet.to_list()
+        |> Enum.sort()
         |> Enum.take(-div(@max_completed_set_size, 2))
         |> MapSet.new()
       else

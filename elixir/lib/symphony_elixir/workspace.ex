@@ -119,7 +119,7 @@ defmodule SymphonyElixir.Workspace do
     if sanitized == raw do
       sanitized
     else
-      hash = :erlang.phash2(raw) |> Integer.to_string(16) |> String.downcase()
+      hash = :erlang.phash2(raw) |> Integer.to_string(16)
       "#{sanitized}_#{hash}"
     end
   end

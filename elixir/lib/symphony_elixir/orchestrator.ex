@@ -12,6 +12,7 @@ defmodule SymphonyElixir.Orchestrator do
 
   @continuation_retry_delay_ms 1_000
   @failure_retry_base_ms 10_000
+  @max_completed_set_size 500
   # Slightly above the dashboard render interval so "checking now…" can render.
   @poll_transition_render_delay_ms 20
   @empty_codex_totals %{
@@ -667,9 +668,21 @@ defmodule SymphonyElixir.Orchestrator do
   defp revalidate_issue_for_dispatch(issue, _issue_fetcher, _terminal_states), do: {:ok, issue}
 
   defp complete_issue(%State{} = state, issue_id) do
+    completed = MapSet.put(state.completed, issue_id)
+
+    completed =
+      if MapSet.size(completed) > @max_completed_set_size do
+        completed
+        |> MapSet.to_list()
+        |> Enum.take(-div(@max_completed_set_size, 2))
+        |> MapSet.new()
+      else
+        completed
+      end
+
     %{
       state
-      | completed: MapSet.put(state.completed, issue_id),
+      | completed: completed,
         retry_attempts: Map.delete(state.retry_attempts, issue_id)
     }
   end

@@ -19,13 +19,13 @@
 | Orphan artifacts | 0 | 0 | 1 |
 | **Total** | **4** | **10** | **9** |
 
-**Fixed**: 10 of 23 findings resolved in this audit (8 commits).
+**Fixed**: 11 of 23 findings resolved in this audit (10 commits).
 
 ## Fixed in This Audit
 
 ### [FIXED] P3 — completed MapSet unbounded growth (memory leak)
 - **File**: `orchestrator.ex`
-- `state.completed` grew without bound. Added `@max_completed_set_size` cap (500) with automatic eviction when exceeded.
+- `state.completed` grew without bound. Added `@max_completed_set_size` cap (500) with deterministic eviction (sorted before take) when exceeded.
 
 ### [FIXED] P1 — WorkflowStore reads file every second
 - **File**: `workflow_store.ex`

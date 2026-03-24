@@ -12,6 +12,8 @@ defmodule SymphonyElixir.Orchestrator do
 
   @continuation_retry_delay_ms 1_000
   @failure_retry_base_ms 10_000
+  @max_completed_set_size 500
+  @workspace_cleanup_every_n_polls 60
   # Slightly above the dashboard render interval so "checking now…" can render.
   @poll_transition_render_delay_ms 20
   @empty_codex_totals %{
@@ -36,7 +38,8 @@ defmodule SymphonyElixir.Orchestrator do
       claimed: MapSet.new(),
       retry_attempts: %{},
       codex_totals: nil,
-      codex_rate_limits: nil
+      codex_rate_limits: nil,
+      poll_count: 0
     ]
   end
 
@@ -81,8 +84,13 @@ defmodule SymphonyElixir.Orchestrator do
     now_ms = System.monotonic_time(:millisecond)
     next_poll_due_at_ms = now_ms + state.poll_interval_ms
     :ok = schedule_tick(state.poll_interval_ms)
+    poll_count = state.poll_count + 1
 
-    state = %{state | poll_check_in_progress: false, next_poll_due_at_ms: next_poll_due_at_ms}
+    if rem(poll_count, @workspace_cleanup_every_n_polls) == 0 do
+      Task.start(fn -> run_terminal_workspace_cleanup() end)
+    end
+
+    state = %{state | poll_check_in_progress: false, next_poll_due_at_ms: next_poll_due_at_ms, poll_count: poll_count}
 
     notify_dashboard()
     {:noreply, state}
@@ -667,9 +675,22 @@ defmodule SymphonyElixir.Orchestrator do
   defp revalidate_issue_for_dispatch(issue, _issue_fetcher, _terminal_states), do: {:ok, issue}
 
   defp complete_issue(%State{} = state, issue_id) do
+    completed = MapSet.put(state.completed, issue_id)
+
+    completed =
+      if MapSet.size(completed) > @max_completed_set_size do
+        completed
+        |> MapSet.to_list()
+        |> Enum.sort()
+        |> Enum.take(-div(@max_completed_set_size, 2))
+        |> MapSet.new()
+      else
+        completed
+      end
+
     %{
       state
-      | completed: MapSet.put(state.completed, issue_id),
+      | completed: completed,
         retry_attempts: Map.delete(state.retry_attempts, issue_id)
     }
   end
@@ -753,7 +774,7 @@ defmodule SymphonyElixir.Orchestrator do
         {:noreply, release_issue_claim(state, issue_id)}
 
       retry_candidate_issue?(issue, terminal_states) ->
-        handle_active_retry(state, issue, attempt, metadata)
+        handle_active_retry(state, issue, attempt, metadata, terminal_states)
 
       true ->
         Logger.debug("Issue left active states, removing claim issue_id=#{issue_id} issue_identifier=#{issue.identifier}")
@@ -794,8 +815,8 @@ defmodule SymphonyElixir.Orchestrator do
     StatusDashboard.notify_update()
   end
 
-  defp handle_active_retry(state, issue, attempt, metadata) do
-    if retry_candidate_issue?(issue, terminal_state_set()) and
+  defp handle_active_retry(state, issue, attempt, metadata, terminal_states) do
+    if retry_candidate_issue?(issue, terminal_states) and
          dispatch_slots_available?(issue, state) do
       {:noreply, dispatch_issue(state, issue, attempt)}
     else

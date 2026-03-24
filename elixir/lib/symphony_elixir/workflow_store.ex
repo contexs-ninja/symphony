@@ -115,12 +115,15 @@ defmodule SymphonyElixir.WorkflowStore do
   end
 
   defp reload_current_path(path, state) do
-    case current_stamp(path) do
-      {:ok, stamp} when stamp == state.stamp ->
-        {:ok, state}
+    case quick_stamp(path) do
+      {:ok, {mtime, size}} ->
+        {prev_mtime, prev_size, _prev_hash} = state.stamp
 
-      {:ok, _stamp} ->
-        reload_path(path, state)
+        if mtime == prev_mtime and size == prev_size do
+          {:ok, state}
+        else
+          reload_path(path, state)
+        end
 
       {:error, reason} ->
         log_reload_error(path, reason)
@@ -143,6 +146,13 @@ defmodule SymphonyElixir.WorkflowStore do
          {:ok, content} <- File.read(path) do
       {:ok, {stat.mtime, stat.size, :erlang.phash2(content)}}
     else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp quick_stamp(path) when is_binary(path) do
+    case File.stat(path, time: :posix) do
+      {:ok, stat} -> {:ok, {stat.mtime, stat.size}}
       {:error, reason} -> {:error, reason}
     end
   end
